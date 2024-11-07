@@ -72,7 +72,9 @@ def task2_consistent_airlines(flights_df, carriers_df):
     consistent_airlines.write.csv(task2_output, header=True, mode="overwrite")
     print(f"Task 2 output written to {task2_output}")
 
+# ------------------------
 # Task 3: Origin-Destination Pairs with the Highest Percentage of Canceled Flights
+# ------------------------
 def task3_canceled_routes(flights_df, airports_df):
     # Add a cancellation flag in the flights dataframe
     canceled_flights = flights_df.withColumn(
@@ -104,9 +106,8 @@ def task3_canceled_routes(flights_df, airports_df):
     cancellation_rate.write.csv(task3_output, header=True, mode="overwrite")
     print(f"Task 3 output written to {task3_output}")
 
-
 # ------------------------
-# Task 4: Carrier Performance Based on Time of Day
+# Task 4: Carrier Performance Based on Time of Day (Enhanced)
 # ------------------------
 def task4_carrier_performance_time_of_day(flights_df, carriers_df):
     flights_with_time_period = flights_df.withColumn(
@@ -117,13 +118,16 @@ def task4_carrier_performance_time_of_day(flights_df, carriers_df):
         .otherwise("Night")
     )
     
-    carrier_performance = flights_with_time_period.groupBy("CarrierCode", "TimeOfDay").agg(
-        avg(col("ActualDeparture") - col("ScheduledDeparture")).alias("AvgDepartureDelay")
+    # Calculate the average departure delay in seconds, then convert it to minutes
+    carrier_performance = flights_with_time_period.withColumn(
+        "DepartureDelaySeconds", (unix_timestamp("ActualDeparture") - unix_timestamp("ScheduledDeparture"))
+    ).groupBy("CarrierCode", "TimeOfDay").agg(
+        (avg("DepartureDelaySeconds") / 60).alias("AvgDepartureDelayMinutes")  # Convert seconds to minutes
     ).join(
         carriers_df, "CarrierCode", "inner"
     ).select(
-        carriers_df["CarrierName"].alias("CarrierName"), "TimeOfDay", "AvgDepartureDelay"
-    ).orderBy("TimeOfDay", "AvgDepartureDelay")
+        carriers_df["CarrierName"].alias("CarrierName"), "TimeOfDay", "AvgDepartureDelayMinutes"
+    ).orderBy("TimeOfDay", "AvgDepartureDelayMinutes")
     
     carrier_performance.write.csv(task4_output, header=True, mode="overwrite")
     print(f"Task 4 output written to {task4_output}")
